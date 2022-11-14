@@ -1,0 +1,175 @@
+---
+# tasks file for pxe
+- name: install packages
+  ansible.builtin.dnf:
+    name:
+      - grub2-efi-x64-modules
+      - grub2-tools-extra
+      - shim-ia32
+      - tftp-server
+      - dhcp-server
+      - httpd
+      - wget
+      - vim
+      - zsh
+      - git
+    state: latest
+
+- name: Download RHEL 9.x ISO
+  ansible.builtin.template:
+    src: rhel_downloader.sh.j2
+    dest: /opt/rhel_downloader.sh
+    group: root
+    mode: "0755"
+
+- name: Download RHEL 9.x
+  ansible.builtin.command: /opt/rhel_downloader.sh
+  when: DOWNLOAD_RHEL == "true"
+
+# Config services
+- name: Template congi files
+  ansible.builtin.template:
+    src: dhcpd.conf.j2
+    dest: /etc/dhcp/dhcpd.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Make initial net directories
+  ansible.builtin.command: grub2-mknetdir --net-directory /var/lib/tftpboot/
+
+- name: Make selinux contexts correct
+  ansible.builtin.command: restorecon -R /var/lib/tftpboot
+
+- name: Template grub.cfg
+  ansible.builtin.template:
+    src: grub.cfg.j2
+    dest: /var/lib/tftpboot/boot/grub2/x86_64-efi/grub.cfg
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Make TFTP UEFI dirs
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - /var/lib/tftpboot/images/
+    - /var/lib/tftpboot/images/RHEL9/
+
+- name: Firewall tftp
+  ansible.builtin.command: firewall-cmd --add-service=tftp --permanent
+
+- name: Firewall httpd
+  ansible.builtin.command: firewall-cmd --add-service=http --permanent
+
+- name: Make httpd directories
+  ansible.builtin.file:
+    path: /var/www/html/ks
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Template ks files
+  ansible.builtin.template:
+    src: Ultrastar-RHEL9.ks.j2
+    dest: /var/www/html/ks/Ultrastar-RHEL9.ks
+    group: root
+    mode: "0755"
+
+- name: Template http conf files
+  ansible.builtin.template:
+    src: pxe-server.conf.j2
+    dest: /etc/httpd/conf.d/pxe-server.conf
+    group: root
+    mode: "0755"
+
+- name: Make RHEL ISO directories
+  ansible.builtin.file:
+    path: "/mnt/RHEL{{ RED_HAT_RHEL_VERSION }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Mount DVD read-only
+  ansible.builtin.command: "mount -o loop,ro -t iso9660 /media/{{ RHEL_ISO_VERSION }} /mnt/RHEL{{ RED_HAT_RHEL_VERSION }}"
+
+- name: Copy ISO
+  ansible.builtin.command: "cp -pr /mnt/RHEL{{ RED_HAT_RHEL_VERSION }}/ /var/www/html/"
+
+- name: Make sure a service unit is running
+  ansible.builtin.systemd:
+    state: started
+    enabled: yes
+    name: httpd
+
+- name: Make sure a service unit is running
+  ansible.builtin.systemd:
+    state: started
+    enabled: yes
+    name: tftp.socket
+
+- name: Make sure a service unit is running
+  ansible.builtin.systemd:
+    state: started
+    enabled: yes
+    name: dhcpd
+
+- name: Make UEFI work directories
+  ansible.builtin.file:
+    path: "/media/UEFI_RHEL{{ RED_HAT_RHEL_VERSION }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Make tftp uefi dir
+  ansible.builtin.file:
+    path: "/var/lib/tftpboot/uefi"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Copy shim to /media/UEFI_RHELx
+  ansible.builtin.command: "cp -pr /var/www/html/RHEL{{ RED_HAT_RHEL_VERSION }}/BaseOS/Packages/shim-x64-15.5-2.el9.x86_64.rpm /media/UEFI_RHEL{{ RED_HAT_RHEL_VERSION }}"
+
+- name: Copy grub2-efi to /media/UEFI_RHELx
+  ansible.builtin.command: "cp -pr /var/www/html/RHEL{{ RED_HAT_RHEL_VERSION }}/BaseOS/Packages/grub2-efi-x64-2.06-27.el9_0.x86_64.rpm /media/UEFI_RHEL{{ RED_HAT_RHEL_VERSION }}"
+
+- name: Copy initrd /var/lib/tftpboot/images/RHEL9.x
+  ansible.builtin.command: "cp -pr /var/www/html/RHEL{{ RED_HAT_RHEL_VERSION }}/images/pxeboot/initrd.img /var/lib/tftpboot/images/RHEL{{ RED_HAT_RHEL_VERSION }}/"
+
+- name: Copy vmlinuz /var/lib/tftpboot/images/RHEL9.x
+  ansible.builtin.command: "cp -pr /var/www/html/RHEL{{ RED_HAT_RHEL_VERSION }}/images/pxeboot/vmlinuz /var/lib/tftpboot/images/RHEL{{ RED_HAT_RHEL_VERSION }}/"
+
+- name: Copy background img
+  ansible.builtin.copy:
+    src: bg.png
+    dest: /var/lib/tftpboot/
+    owner: root
+    group: root
+    mode: "0755"
+# - name: rpm2cpio shim
+#   ansible.builtin.raw: "rpm2cpio /media/UEFI_RHEL{{ RED_HAT_RHEL_VERSION }}/shim-x64-15.5-2.el9.x86_64.rpm | cpio -dimv"
+
+# - name: rpm2cpio shim
+#   ansible.builtin.raw: "rpm2cpio /media/UEFI_RHEL{{ RED_HAT_RHEL_VERSION }}/grub2-efi-x64-2.06-27.el9_0.x86_64.rpm | cpio -dimv"
+
+- name: Copy EFI pkgs
+  ansible.builtin.shell: "cp -rp /media/UEFI_RHEL9/boot/efi/EFI/redhat/* /var/lib/tftpboot/uefi/"
+
+- name: Template http conf files
+  ansible.builtin.template:
+    src: pxe_services.sh.j2
+    dest: /opt/pxe_services.sh
+    group: root
+    mode: "0755"
+
+- name: Un-mount ISO
+  ansible.builtin.command: "umount /mnt/RHEL{{ RED_HAT_RHEL_VERSION }}"

@@ -1,0 +1,13 @@
+<VirtualHost {{ ansible_default_ipv4.address }}:80>
+    DocumentRoot /var/www/html
+    ErrorLog logs/ks-server.mainsail.industries.local-error_log
+    CustomLog logs/ks-server.mainsail.industries.local-access_log common
+    <Directory /ks>
+        AllowOverride All
+        Require all granted
+    </Directory>
+    <Directory /RHEL9>
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>

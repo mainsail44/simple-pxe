@@ -1,0 +1,24 @@
+set default=0
+set timeout=60
+insmod all_video
+insmod gfxterm
+insmod gfxterm_menu
+insmod gfxmenu
+insmod gfxterm_background
+insmod png
+terminal_output gfxterm
+loadfont /unicode.pf2
+background_image -m stretch /bg.png
+
+set menu_color_highlight=cyan/black
+set menu_color_normal=white/black
+set color_normal=white/black
+terminal_output gfxterm
+#loadfont /unicode.pf2
+background_image -m stretch bg.png
+
+
+menuentry 'RHEL {{ RED_HAT_RHEL_VERSION }} UEFI Metalvisor' --class fedora --class gnu-linux --class gnu --class os {
+  linuxefi images/RHEL{{ RED_HAT_RHEL_VERSION }}/vmlinuz inst.repo=http://{{ ansible_default_ipv4.address }}:/RHEL{{ RED_HAT_RHEL_VERSION }}/ inst.ks=http://{{ ansible_default_ipv4.address }}:/ks/Ultrastar-RHEL9.ks ip=dhcp inst.text inst.zram=0 console=tty0 console=ttyS0,115200n8
+  initrdefi images/RHEL{{ RED_HAT_RHEL_VERSION }}/initrd.img
+}

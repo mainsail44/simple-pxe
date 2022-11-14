@@ -1,0 +1,138 @@
+# Ultrastar RHEL9
+# Nov 14, 2022
+
+# -------------------------------
+network --hostname {{ METALVISOR_STATIC_HOSTNAME }} --bootproto=static --ip={{ METALVISOR_STATIC_IP }} --netmask={{ METALVISOR_STATIC_NETMASK }} --gateway={{ METALVISOR_STATIC_GATEWAY }} --nameserver={{ METALVISOR_STATIC_DNS_1 }},{{ METALVISOR_STATIC_DNS_2 }} --noipv6 --mtu=1500
+url --url="http://{{ ansible_default_ipv4.address }}/RHEL9"
+#repo --name="AppStream" --baseurl="http://{{ ansible_default_ipv4.address }}/RHEL8-4/AppStream"
+# -------------------------------
+
+# -------------------------------
+# Firewall configuration
+firewall --disabled
+# Keyboard layouts
+keyboard --vckeymap=us --xlayouts='us'
+reboot
+# Root password (stack)
+rootpw --iscrypted $1$Z55DWpV/$rDUgEO1OND9UnWKTidnFq0
+# System timezone
+timezone Etc/UTC --isUtc
+# Set service enablements
+services --disabled gpm,sendmail,cups,pcmcia,isdn,rawdevices,hpoj,bluetooth,openibd,avahi-daemon,avahi-dnsconfd,hidd,hplip,pcscd
+# System language
+lang en_US
+# Use text mode install
+text
+# Do not configure the X Window System
+skipx
+# System bootloader configuration
+bootloader --location=mbr
+# Clear the Master Boot Record
+zerombr
+# Partition clearing information
+clearpart --all --initlabel
+#ignoredisk --only-use=sda
+autopart --type=plain
+# -------------------------------
+
+# -------------------------------
+%packages
+
+-aic94xx-firmware
+-atmel-firmware
+-b43-openfwwf
+-bfa-firmware
+-ipw2100-firmware
+-ipw2200-firmware
+-ivtv-firmware
+-iwl1000-firmware
+-iwl100-firmware
+-iwl105-firmware
+-iwl135-firmware
+-iwl2000-firmware
+-iwl2030-firmware
+-iwl3160-firmware
+-iwl3945-firmware
+-iwl4965-firmware
+-iwl5000-firmware
+-iwl5150-firmware
+-iwl6000-firmware
+-iwl6000g2a-firmware
+-iwl6000g2b-firmware
+-iwl6050-firmware
+-iwl7260-firmware
+-iwl7265-firmware
+-libertas-sd8686-firmware
+-libertas-sd8787-firmware
+-libertas-usb8388-firmware
+-ql2100-firmware
+-ql2200-firmware
+-ql23xx-firmware
+-ql2400-firmware
+-ql2500-firmware
+-rt61pci-firmware
+-rt73usb-firmware
+-xorg-x11-drv-ati-firmware
+-zd1211-firmware
+
+# Metalvisor 4.1
+ipmitool
+cockpit
+podman
+virt-install
+python-devel
+gcc
+python3-pip
+pciutils
+
+%end
+# -------------------------------
+
+# -------------------------------
+%post
+#---- NVIDIA -----------------
+# Unload faulty generic NVIDIA
+# driver if it is present
+modprobe -r nouveau
+# Blacklist faulty generic NVIDIA driver
+echo 'blacklist nouveau' >>/etc/modprobe.d/blacklist.conf
+#echo 'install nouveau /bin/false' >> /etc/modprobe.d/blacklist.conf
+echo 'options nouveau modeset=0' >>/etc/modprobe.d/blacklist.conf
+#disable the mgmt interface
+sed -i 's/ONBOOT=yes/ONBOOT=no/' /etc/sysconfig/network-scripts/ifcfg-enp26s0f1
+dracut --force
+# Verbose boot console
+sed -i 's/rhgb quiet//g' /etc/default/grub
+grub2-mkconfig -o /boot/efi/EFI/redhat/grub.cfg
+#---- Install our SSH key ----
+useradd stack
+echo "stack" | passwd --stdin stack
+echo 'stack        ALL=(ALL)       NOPASSWD: ALL' >>/etc/sudoers
+# Add my SSH Key to STACK
+mkdir -p ~stack/.ssh
+cat <<EOF >>~stack/.ssh/authorized_keys
+{{ METALVISOR_SSH_PUBLIC_KEY }}
+EOF
+chmod 0700 ~stack/.ssh
+chmod 0600 ~stack/.ssh/authorized_keys
+chown -R stack:stack ~stack/.ssh
+mkdir -m0700 /root/.ssh/
+# Add my SSH Key to ROOT
+cat <<EOF >/root/.ssh/authorized_keys
+{{ METALVISOR_SSH_PUBLIC_KEY }}
+EOF
+# Set permissions
+chmod 0600 /root/.ssh/authorized_keys
+# Fix selinux context
+restorecon -R /root/.ssh/
+restorecon -R /stack/.ssh/
+# Verbose boot console
+sed -i 's/rhgb quiet//g' /etc/default/grub
+grub2-mkconfig -o /boot/efi/EFI/redhat/grub.cfg
+# Register RHEL
+subscription-manager register --org={{ RED_HAT_ORG }} --activationkey={{ RED_HAT_ACTIVATIONKEY }} --force
+# Metalvisor 4.1
+sudo pip3 install diskimage-builder
+sudo pip3 install os-utils python-magic PyYAML nova==24.0.0 python-novaclient==17.4.0 lxml==4.7.1
+
+%end

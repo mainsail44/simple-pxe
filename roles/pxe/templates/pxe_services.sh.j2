@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+echo "Starting DHCPD"
+echo "Starting TFTP"
+echo "Starting HTTPD"
+
+sudo systemctl restart dhcpd
+sudo systemctl restart tftp
+sudo systemctl restart httpd
+
+if [ $? -eq 0 ]; then
+    echo OK
+else
+    echo FAIL
+fi

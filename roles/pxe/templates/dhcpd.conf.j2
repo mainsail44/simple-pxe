@@ -1,0 +1,61 @@
+#
+# DHCP Server Configuration file.
+#   see /usr/share/doc/dhcp-server/dhcpd.conf.example
+#   see dhcpd.conf(5) man page
+#
+ddns-update-style interim;
+
+allow booting;
+allow bootp;
+authoritative;
+log-facility local6;
+
+ignore client-updates;
+set vendorclass = option vendor-class-identifier;
+
+## Allowing EFI Clients
+option pxe-system-type code 93 = unsigned integer 16;
+option rfc3442-classless-static-routes code 121 = array of integer 8;
+option ms-classless-static-routes code 249 = array of integer 8;
+
+option space pxelinux;
+option pxelinux.magic code 208 = string;
+option pxelinux.configfile code 209 = text;
+option pxelinux.pathprefix code 210 = text;
+option pxelinux.reboottime code 211 = unsigned integer 32;
+option architecture-type code 93 = unsigned integer 16;
+
+option pxelinux.mtftp-ip    code 1 = ip-address;
+option pxelinux.mtftp-cport code 2 = unsigned integer 16;
+option pxelinux.mtftp-sport code 3 = unsigned integer 16;
+option pxelinux.mtftp-tmout code 4 = unsigned integer 8;
+option pxelinux.mtftp-delay code 5 = unsigned integer 8;
+
+subnet 192.168.1.0 netmask 255.255.255.0 {
+        interface               {{ ansible_default_ipv4.interface }};
+        option routers          {{ ansible_default_ipv4.gateway }};
+        option domain-name-servers      1.1.1.1, 1.0.0.1;
+        option domain-name              "mainsail.lab";
+        option subnet-mask              255.255.255.0;
+        range           192.168.1.50 192.168.1.100;
+        ## EFI Client Catch
+        class "pxeclients" {
+                match if substring (option vendor-class-identifier, 0, 9) = "PXEClient";
+                if option pxe-system-type = 00:07 {
+                        filename "boot/grub2/x86_64-efi/core.efi";
+                } else if option pxe-system-type = 00:08 {
+                        filename "boot/grub2/x86_64-efi/core.efi";
+                } else if option pxe-system-type = 00:09 {
+                        filename "boot/grub2/x86_64-efi/core.efi";
+                } else if option pxe-system-type = 00:0a {
+                        filename "boot/grub2/armv7a-efi/core.efi";
+                } else if option pxe-system-type = 00:0b {
+                        filename "boot/grub2/aarch64-efi/core.efi";
+                } else {
+                        filename "boot/grub2/i386-pc/core.0";
+                }
+        }
+        default-lease-time      21600;
+        max-lease-time  43200;
+        next-server     {{ ansible_default_ipv4.address }};
+}

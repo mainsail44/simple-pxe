@@ -1,0 +1,20 @@
+---
+# defaults file for pxe
+
+METALVISOR_STATIC_IP: 192.168.1.222
+METALVISOR_STATIC_NETMASK: 255.255.255.0
+METALVISOR_STATIC_GATEWAY: 192.168.1.1
+METALVISOR_STATIC_DNS_1: 1.1.1.1
+METALVISOR_STATIC_DNS_2: 1.0.0.1
+METALVISOR_STATIC_HOSTNAME: "metalvisor09.mainsail.lab"
+
+METALVISOR_SSH_PUBLIC_KEY: "ssh-rsa <<-----SNIP---->>"
+
+RED_HAT_ACTIVATIONKEY: ""
+RED_HAT_ORG: 1111111
+RED_HAT_RHEL_VERSION: 9
+RHEL_ISO_VERSION: "rhel-baseos-9.0-x86_64-dvd.iso"
+# get a Offline API token here: https://access.redhat.com/management/api
+RHEL_OFFLINE_TOKEN: ""
+# get the checksum for RHEL 9.x from the Red Hat Downloads page.
+RHEL_CHECKSUM: ""
