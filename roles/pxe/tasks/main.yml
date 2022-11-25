@@ -8,6 +8,8 @@
       - shim-ia32
       - tftp-server
       - dhcp-server
+      - cockpit-selinux
+      - cockpit
       - httpd
       - wget
       - vim
@@ -102,23 +104,35 @@
 - name: Copy ISO
   ansible.builtin.command: "cp -pr /mnt/RHEL{{ RED_HAT_RHEL_VERSION }}/ /var/www/html/"
 
-- name: Make sure a service unit is running
+- name: Make sure httpd service unit is running
   ansible.builtin.systemd:
     state: started
     enabled: yes
     name: httpd
 
-- name: Make sure a service unit is running
+- name: Make sure tftp service unit is running
   ansible.builtin.systemd:
     state: started
     enabled: yes
     name: tftp.socket
 
-- name: Make sure a service unit is running
+- name: Make sure dhcp service unit is running
   ansible.builtin.systemd:
     state: started
     enabled: yes
     name: dhcpd
+
+- name: Start Cockpit on <IP>:9090
+  ansible.builtin.service:
+    enabled: yes
+    state: started
+    name: cockpit
+
+- name: Start Cockpit.socket on <IP>:9090
+  ansible.builtin.service:
+    enabled: yes
+    state: started
+    name: cockpit.socket
 
 - name: Make UEFI work directories
   ansible.builtin.file:
