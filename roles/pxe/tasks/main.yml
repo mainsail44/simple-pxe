@@ -8,6 +8,7 @@
       - shim-ia32
       - tftp-server
       - dhcp-server
+      - guestfs-tools
       - cockpit-selinux
       - cockpit
       - httpd
